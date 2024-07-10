@@ -35,17 +35,14 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
     res: ServerResponse,
   ) => {
     const redirect: RequestRedirect = 'manual';
-    const headers = { Accept: 'application/octet-stream' };
+    const headers = {
+      Accept: 'application/octet-stream',
+      Authorization: `Basic ${btoa(token!)}`,
+    };
     const options = { headers, redirect };
     const { api_url: rawUrl } = asset;
-    const finalUrl = rawUrl.replace(
-      'https://api.github.com/',
-      `https://${token}@api.github.com/`,
-    );
 
-    console.log({ asset });
-
-    fetch(finalUrl, options).then(assetRes => {
+    fetch(rawUrl, options).then(assetRes => {
       res.setHeader('Location', assetRes.headers.get('Location')!);
       send(res, 302);
     });
