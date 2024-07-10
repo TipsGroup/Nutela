@@ -16,7 +16,7 @@
   "lint-staged": {
     "**/*.ts": [
       "eslint .",
-      "yarn test",
+      "yarn test --bail --findRelatedTests",
       "git add"
     ]
   },
