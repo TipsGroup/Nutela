@@ -1,7 +1,32 @@
 /* global describe, it, expect */
 import Cache from '../src/lib/cache';
 
+const assetsFetchMock = () =>
+  Promise.resolve({
+    ok: true,
+    status: 200,
+    json: () =>
+      Promise.resolve([
+        {
+          tag_name: 'v4.0.0-canary.5',
+          draft: false,
+          prerelease: false,
+          assets: [],
+        },
+      ]),
+  } as Response);
+
 describe('Cache', () => {
+  let fetchMock: any = undefined;
+
+  beforeEach(() => {
+    fetchMock = jest.spyOn(global, 'fetch').mockImplementation(assetsFetchMock);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('should throw when account is not defined', () => {
     expect(() => {
       const config = { repository: 'hyper' };
