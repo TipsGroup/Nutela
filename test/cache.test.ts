@@ -28,7 +28,7 @@ describe('Cache', () => {
       account: 'zeit',
       repository: 'hyper',
       token: process.env.TOKEN,
-      url: process.env.URL,
+      url: process.env.PRIVATE_BASE_URL,
     };
 
     new Cache(config);
@@ -39,7 +39,7 @@ describe('Cache', () => {
       account: 'zeit',
       repository: 'hyper',
       token: process.env.TOKEN,
-      url: process.env.URL,
+      url: process.env.PRIVATE_BASE_URL,
     };
 
     const cache = new Cache(config);
@@ -54,7 +54,7 @@ describe('Cache', () => {
       account: 'zeit',
       repository: 'hyper',
       token: process.env.TOKEN,
-      url: process.env.URL,
+      url: process.env.PRIVATE_BASE_URL,
     };
 
     const cache = new Cache(config);
