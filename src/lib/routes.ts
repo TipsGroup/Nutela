@@ -267,7 +267,14 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
         github: `https://github.com/${config.account}/${config.repository}`,
       };
 
-      send(res, 200, render(details));
+      const content = render(details);
+
+      res.writeHead(200, {
+        'content-length': Buffer.byteLength(content, 'utf8'),
+        'content-type': 'text/html',
+      });
+
+      res.end(content);
     } catch (err) {
       console.error(err);
       send(res, 500, 'Error reading overview file');
