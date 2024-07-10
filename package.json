@@ -8,6 +8,7 @@
     "copy-views": "copyfiles -u 1 src/views/**.* dist/src/",
     "dev": "ts-node-dev -r tsconfig-paths/register -r dotenv/config --respawn --transpile-only --debug --exit-child --ignore-watch node_modules src/index.ts",
     "test": "jest",
+    "lint": "eslint .",
     "lint-staged": "lint-staged",
     "prepare": "husky"
   },
@@ -15,7 +16,7 @@
   "repository": "TipsGroup/nutela",
   "lint-staged": {
     "**/*.ts": [
-      "eslint .",
+      "yarn lint",
       "yarn test --bail --findRelatedTests",
       "git add"
     ]

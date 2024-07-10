@@ -1,0 +1,33 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+env:
+  TOKEN: some-github-token
+  ACCOUNT: TipsGroup
+  REPOSITORY: orbi-client
+  PRIVATE_BASE_URL: http://localhost:8000
+jobs:
+  ci:
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - uses: actions/setup-node@v3
+        with:
+          node-version-file: ".nvmrc"
+          cache: "yarn"
+      - name: Install node dependencies
+        run: yarn install --frozen-lockfile
+      - name: Build
+        run: yarn build
+      - name: Run linter
+        run: yarn lint
+      - name: Run tests
+        run: yarn test
