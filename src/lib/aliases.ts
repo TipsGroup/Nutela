@@ -1,29 +1,32 @@
-const aliases = {
+const aliases: Record<string, string[]> = {
   darwin: ['mac', 'macos', 'osx'],
   exe: ['win32', 'windows', 'win'],
   deb: ['debian'],
   rpm: ['fedora'],
   AppImage: ['appimage'],
-  dmg: ['dmg']
-}
+  dmg: ['dmg'],
+  nupkg: ['nupkg'],
+};
 
 for (const existingPlatform of Object.keys(aliases)) {
   const newPlatform = existingPlatform + '_arm64';
-  aliases[newPlatform] = aliases[existingPlatform].map(alias => `${alias}_arm64`);
+  aliases[newPlatform] = aliases[existingPlatform].map(
+    alias => `${alias}_arm64`,
+  );
 }
 
-module.exports = platform => {
+export default (platform: string): string => {
   if (typeof aliases[platform] !== 'undefined') {
-    return platform
+    return platform;
   }
 
   for (const guess of Object.keys(aliases)) {
-    const list = aliases[guess]
+    const list = aliases[guess];
 
     if (list.includes(platform)) {
-      return guess
+      return guess;
     }
   }
 
-  return false
-}
+  throw new Error('The specified platform is not valid');
+};

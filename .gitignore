@@ -3,3 +3,10 @@ coverage
 
 # dependencies
 node_modules
+
+# project
+dist
+
+# workspace
+.history
+.env
