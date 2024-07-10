@@ -1,10 +1,10 @@
 import http from 'node:http';
 
-import hazel from '../lib/server';
+import nutela from '../lib/server';
 
 const PORT = process.env.PORT ?? 8000;
 
-const server = http.createServer(hazel);
+const server = http.createServer(nutela);
 server.listen(PORT);
 
 console.log(`Running on PORT: ${PORT}`);

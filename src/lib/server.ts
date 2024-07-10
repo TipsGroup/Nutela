@@ -1,4 +1,4 @@
-import hazel from './index';
+import nutela from './index';
 
 const {
   INTERVAL: interval,
@@ -12,7 +12,7 @@ const {
 
 const url = VERCEL_URL ?? PRIVATE_BASE_URL;
 
-export default hazel({
+export default nutela({
   interval,
   account,
   repository,
