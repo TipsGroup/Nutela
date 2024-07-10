@@ -28,7 +28,7 @@ autoUpdater.setFeedURL({ url })
 
 That's it! :white_check_mark:
 
-From now on, the auto updater will ask your Hazel deployment for updates!
+From now on, the auto updater will ask your Nutela deployment for updates!
 
 ## Options
 
