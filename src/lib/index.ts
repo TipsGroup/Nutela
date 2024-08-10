@@ -20,7 +20,7 @@ export default (config: Config) => {
     router.get('/download', routes.download);
     router.get('/download/:platform', routes.downloadPlatform);
     router.get('/update/:platform/:version', routes.update);
-    router.get('/update/win32/:version/RELEASES', routes.releases);
+    router.get('/update/win32/:version/:filename', routes.releases);
 
     return (req: IncomingMessage, res: ServerResponse) => {
       router(req, res, finalhandler(req, res));
