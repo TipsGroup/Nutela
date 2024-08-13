@@ -14,7 +14,7 @@ export default (fileName: string) => {
     return 'darwin' + arch;
   }
 
-  const directCache = ['exe', 'dmg', 'rpm', 'deb', 'AppImage'];
+  const directCache = ['exe', 'dmg', 'rpm', 'deb', 'AppImage', 'nupkg'];
 
   if (!directCache.includes(extension)) {
     throw new InvalidPlatformError('Invalid platform');
