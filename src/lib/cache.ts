@@ -33,9 +33,18 @@ const streamToString = async (stream: ReadableStream) => {
   return Buffer.concat(chunks).toString('utf-8');
 };
 
+export type CacheRegionType = 'br' | 'us';
+
 export default class Cache {
   private readonly config: Config;
   private latest: {
+    version?: SemVer;
+    notes?: string;
+    pub_date?: Date;
+    platforms?: Record<string, Asset>;
+    files?: Record<string, string>;
+  };
+  private latestUS: {
     version?: SemVer;
     notes?: string;
     pub_date?: Date;
@@ -49,6 +58,7 @@ export default class Cache {
 
     this.config = config;
     this.latest = {};
+    this.latestUS = {};
     this.lastUpdate = null;
 
     if (!account || !repository) {
@@ -108,6 +118,67 @@ export default class Cache {
     return content;
   }
 
+  async getLatestRelease(release: any, region: 'br' | 'us') {
+    if (!release?.assets || !Array.isArray(release.assets)) {
+      return;
+    }
+
+    const { tag_name } = release;
+    const latestByRegion = region === 'br' ? 'latest' : 'latestUS';
+
+    if (this[latestByRegion].version === tag_name) {
+      console.log('Cached version is the same as latest');
+      this.lastUpdate = Date.now();
+      return;
+    }
+
+    console.log(`Caching version ${tag_name}...`);
+
+    this[latestByRegion].version = tag_name;
+    this[latestByRegion].notes = release.body;
+    this[latestByRegion].pub_date = release.published_at;
+
+    // Clear list of download links
+    this[latestByRegion].platforms = {};
+
+    for (const asset of release.assets) {
+      const { name, browser_download_url, url, content_type, size } = asset;
+
+      if (name === 'RELEASES') {
+        try {
+          if (!this[latestByRegion].files) {
+            this[latestByRegion].files = {};
+          }
+          this[latestByRegion].files.RELEASES = await this.cacheReleaseList(
+            url,
+            browser_download_url,
+          );
+        } catch (err) {
+          console.error(err);
+        }
+        continue;
+      }
+
+      try {
+        const platform = checkPlatform(name);
+
+        this[latestByRegion].platforms[platform] = {
+          name,
+          api_url: url,
+          url: browser_download_url,
+          content_type,
+          size: Math.round((size / 1000000) * 10) / 10,
+        };
+      } catch (error) {
+        if (error instanceof InvalidPlatformError) {
+          continue;
+        }
+
+        throw new UnhandledError('Unhandled error!');
+      }
+    }
+  }
+
   async refreshCache() {
     const { account, repository, pre, token } = this.config;
     const repo = account + '/' + repository;
@@ -141,68 +212,21 @@ export default class Cache {
 
     const release = data.find(item => {
       const isPre = Boolean(pre) === Boolean(item.prerelease);
-      return !item.draft && isPre;
+      const isBR = !item.tag_name.includes('-en-US');
+      return !item.draft && isPre && isBR;
     });
 
-    if (!release?.assets || !Array.isArray(release.assets)) {
-      return;
-    }
+    const releaseUS = data.find(item => {
+      const isPre = Boolean(pre) === Boolean(item.prerelease);
+      const isUS = item.tag_name.includes('-en-US');
+      return !item.draft && isPre && isUS;
+    });
 
-    const { tag_name } = release;
+    await this.getLatestRelease(release, 'br');
+    await this.getLatestRelease(releaseUS, 'us');
 
-    if (this.latest.version === tag_name) {
-      console.log('Cached version is the same as latest');
-      this.lastUpdate = Date.now();
-      return;
-    }
-
-    console.log(`Caching version ${tag_name}...`);
-
-    this.latest.version = tag_name;
-    this.latest.notes = release.body;
-    this.latest.pub_date = release.published_at;
-
-    // Clear list of download links
-    this.latest.platforms = {};
-
-    for (const asset of release.assets) {
-      const { name, browser_download_url, url, content_type, size } = asset;
-
-      if (name === 'RELEASES') {
-        try {
-          if (!this.latest.files) {
-            this.latest.files = {};
-          }
-          this.latest.files.RELEASES = await this.cacheReleaseList(
-            url,
-            browser_download_url,
-          );
-        } catch (err) {
-          console.error(err);
-        }
-        continue;
-      }
-
-      try {
-        const platform = checkPlatform(name);
-
-        this.latest.platforms[platform] = {
-          name,
-          api_url: url,
-          url: browser_download_url,
-          content_type,
-          size: Math.round((size / 1000000) * 10) / 10,
-        };
-      } catch (error) {
-        if (error instanceof InvalidPlatformError) {
-          continue;
-        }
-
-        throw new UnhandledError('Unhandled error!');
-      }
-    }
-
-    console.log(`Finished caching version ${tag_name}`, this.latest);
+    console.log(`Finished caching version BR`, this.latest);
+    console.log(`Finished caching version US`, this.latestUS);
     this.lastUpdate = Date.now();
   }
 
@@ -220,13 +244,13 @@ export default class Cache {
   // This is a method returning the cache
   // because the cache would otherwise be loaded
   // only once when the index file is parsed
-  async loadCache() {
-    const { latest, refreshCache, isOutdated, lastUpdate } = this;
+  async loadCache(region: 'br' | 'us' = 'br') {
+    const { latest, latestUS, refreshCache, isOutdated, lastUpdate } = this;
 
     if (!lastUpdate || isOutdated()) {
       await refreshCache();
     }
 
-    return Object.assign({}, latest);
+    return Object.assign({}, region === 'br' ? latest : latestUS);
   }
 }
