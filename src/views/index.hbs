@@ -128,20 +128,37 @@
       <main>
           <header>
             <div id="release">{{account}}/<span id="repo">{{repository}}</span></div>
-            <div id="date">{{date}}</div>
           </header>
 
-          <div id="list">
-            {{#each files}}
-              <div class="item">
-                <div class="fileType">{{@key}}: <span class="url"><a href="/download/{{@key}}">/latest/{{@key}}</a></span></div>
-                <div class="size">{{this.size}} MB</div>
-              </div>
-            {{/each}}
-          </div>
+          {{#if versionBR}}
+          <section>
+            <h2>BR <span id="version">{{versionBR}}</span> <span id="date">{{dateBR}}</span></h2>
+            <div id="list">
+              {{#each filesBR}}
+                <div class="item">
+                  <div class="fileType">{{@key}}: <span class="url"><a href="/download/{{@key}}?region=br">/latest/{{@key}}</a></span></div>
+                  <div class="size">{{this.size}} MB</div>
+                </div>
+              {{/each}}
+            </div>
+          </section>
+          {{/if}}
+
+          {{#if versionUS}}
+          <section>
+            <h2>US <span id="version">{{versionUS}}</span> <span id="date">{{dateUS}}</span></h2>
+            <div id="list">
+              {{#each filesUS}}
+                <div class="item">
+                  <div class="fileType">{{@key}}: <span class="url"><a href="/download/{{@key}}?region=us">/latest/{{@key}}</a></span></div>
+                  <div class="size">{{this.size}} MB</div>
+                </div>
+              {{/each}}
+            </div>
+          </section>
+          {{/if}}
 
           <footer>
-            <div id="version">{{version}}</div>
             <a id="release-notes" href={{releaseNotes}}>Release Notes</a>
             <a id="all-releases" href={{allReleases}}>All Releases</a>
             <a href={{github}}>GitHub</a>

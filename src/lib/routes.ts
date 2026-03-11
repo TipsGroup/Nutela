@@ -15,9 +15,14 @@ import prepareView from './view';
 import { formatDistanceToNow } from 'date-fns';
 import { Asset, type Config } from './types';
 import type Cache from './cache';
+import { CacheRegionType } from './cache';
 
 type RouterIncomingMessage = IncomingMessage & {
-  params: { platform: string; version: string; filename: string };
+  params: {
+    platform: string;
+    version: string;
+    filename: string;
+  };
 };
 
 export default ({ cache, config }: { cache: Cache; config: Config }) => {
@@ -49,9 +54,11 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
   };
 
   const download = async (req: IncomingMessage, res: ServerResponse) => {
+    const request = req as RouterIncomingMessage;
     const userAgent = parse(req.headers['user-agent']!);
     const params = urlHelpers.parse(req.url!, true).query;
     const isUpdate = params?.update;
+    const { region } = params as { region: CacheRegionType };
 
     let platform;
 
@@ -64,7 +71,7 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
     }
 
     // Get the latest version from the cache
-    const { platforms } = await loadCache();
+    const { platforms } = await loadCache(region);
 
     if (!platform || !platforms?.[platform]) {
       send(res, 404, 'No download available for your platform!');
@@ -90,8 +97,9 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
     const request = req as RouterIncomingMessage;
     const params = urlHelpers.parse(request.url!, true).query;
     const isUpdate = params?.update;
-
     let { platform } = request.params;
+
+    const { region } = params as { region: CacheRegionType };
 
     if (platform === 'mac' && !isUpdate) {
       platform = 'dmg';
@@ -102,7 +110,7 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
     }
 
     // Get the latest version from the cache
-    const latest = await loadCache();
+    const latest = await loadCache(region);
 
     // Check platform for appropiate aliases
     try {
@@ -137,6 +145,9 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
     const request = req as RouterIncomingMessage;
     const { platform: platformName, version } = request.params;
 
+    const params = urlHelpers.parse(request.url!, true).query;
+    const { region } = params as { region: CacheRegionType };
+
     if (!valid(version)) {
       send(res, 500, {
         error: 'version_invalid',
@@ -158,7 +169,7 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
     }
 
     // Get the latest version from the cache
-    const latest = await loadCache();
+    const latest = await loadCache(region);
 
     if (!latest.platforms?.[platform]) {
       res.statusCode = 204;
@@ -200,8 +211,12 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
 
   const releases = async (req: IncomingMessage, res: ServerResponse) => {
     const request = req as RouterIncomingMessage;
-    const latest = await loadCache();
     const { filename } = request.params;
+
+    const params = urlHelpers.parse(request.url!, true).query;
+    const { region } = params as { region: CacheRegionType };
+
+    const latest = await loadCache(region);
 
     if (filename.toLowerCase().startsWith('releases')) {
       if (!latest.files || !latest.files.RELEASES) {
@@ -247,7 +262,8 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
   };
 
   const overview = async (req: IncomingMessage, res: ServerResponse) => {
-    const latest = await loadCache();
+    const latestBR = await loadCache('br');
+    const latestUS = await loadCache('us');
 
     try {
       const render = await prepareView();
@@ -255,15 +271,18 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
       const details = {
         account: config.account,
         repository: config.repository,
-        date: formatDistanceToNow(latest.pub_date!, { addSuffix: true }),
-        files: latest.platforms,
-        version: latest.version,
-        releaseNotes: `https://github.com/${config.account}/${
-          config.repository
-        }/releases/tag/${latest.version}`,
-        allReleases: `https://github.com/${config.account}/${
-          config.repository
-        }/releases`,
+        dateBR: latestBR.pub_date
+          ? formatDistanceToNow(latestBR.pub_date, { addSuffix: true })
+          : null,
+        filesBR: latestBR.platforms,
+        versionBR: latestBR.version,
+        dateUS: latestUS.pub_date
+          ? formatDistanceToNow(latestUS.pub_date, { addSuffix: true })
+          : null,
+        filesUS: latestUS.platforms,
+        versionUS: latestUS.version,
+        releaseNotes: `https://github.com/${config.account}/${config.repository}/releases`,
+        allReleases: `https://github.com/${config.account}/${config.repository}/releases`,
         github: `https://github.com/${config.account}/${config.repository}`,
       };
 

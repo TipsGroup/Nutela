@@ -68,7 +68,7 @@ describe('Cache', () => {
     };
 
     const cache = new Cache(config);
-    const storage = await cache.loadCache();
+    const storage = await cache.loadCache('br');
 
     expect(typeof storage.version).toBe('string');
     expect(typeof storage.platforms).toBe('object');
@@ -83,7 +83,7 @@ describe('Cache', () => {
     };
 
     const cache = new Cache(config);
-    const storage = await cache.loadCache();
+    const storage = await cache.loadCache('br');
 
     console.log(storage.platforms!.darwin);
   });
