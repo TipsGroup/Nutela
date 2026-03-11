@@ -244,7 +244,7 @@ export default class Cache {
   // This is a method returning the cache
   // because the cache would otherwise be loaded
   // only once when the index file is parsed
-  async loadCache(region: 'br' | 'us') {
+  async loadCache(region: 'br' | 'us' = 'br') {
     const { latest, latestUS, refreshCache, isOutdated, lastUpdate } = this;
 
     if (!lastUpdate || isOutdated()) {
