@@ -13,6 +13,7 @@ import checkAlias from './aliases';
 
 import prepareView from './view';
 import { formatDistanceToNow } from 'date-fns';
+import Mirror, { isValidTag } from './mirror';
 import { Asset, type Config } from './types';
 import type Cache from './cache';
 
@@ -27,8 +28,61 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
   const shouldProxyPrivateDownload =
     token && typeof token === 'string' && token.length > 0;
 
+  const mirror = new Mirror(config.storage ?? {}, config.repository, token);
+
+  /**
+   * Mantém o espelho aquecido usando o tráfego que já existe — o updater de
+   * cada cliente bate aqui a cada 3 min, então uma release nova costuma estar
+   * espelhada bem antes de a primeira pessoa clicar em baixar.
+   */
+  const loadCacheAndWarmMirror = async () => {
+    const latest = await loadCache();
+    const exe = latest.platforms?.exe;
+
+    // `version` é declarada como SemVer no cache mas recebe a string do
+    // tag_name; String() reconcilia sem mexer no tipo existente.
+    if (exe && latest.version) {
+      void mirror.ensureMirrored(String(latest.version), exe);
+    }
+
+    return latest;
+  };
+
+  /**
+   * Instalador com uma etiqueta opaca no nome do arquivo, servido por presigned
+   * URL do bucket próprio. Serve para o cliente correlacionar o download que
+   * originou aquela instalação.
+   *
+   * Devolve false quando não dá (sem espelho, etiqueta inválida, release ainda
+   * não copiada) e quem chama segue para o redirect normal — o usuário baixa o
+   * mesmo binário, só sem a etiqueta.
+   *
+   * A etiqueta é opaca aqui e pode carregar dado sensível de quem chamou: NÃO
+   * logar em hipótese alguma.
+   */
+  const tryTaggedDownload = async (
+    tag: unknown,
+    version: unknown,
+    asset: Asset,
+    res: ServerResponse,
+  ) => {
+    if (typeof tag !== 'string' || !isValidTag(tag)) {
+      return false;
+    }
+
+    if (!version) return false;
+
+    const location = await mirror.getTaggedUrl(String(version), asset, tag);
+
+    if (!location) return false;
+
+    res.writeHead(302, { Location: location });
+    res.end();
+
+    return true;
+  };
+
   // Helpers
-  // TODO: armazenar no S3 e gerar link de download de lá
   const proxyPrivateDownload = (
     asset: Asset,
     req: IncomingMessage,
@@ -64,10 +118,21 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
     }
 
     // Get the latest version from the cache
-    const { platforms } = await loadCache();
+    const latest = await loadCacheAndWarmMirror();
+    const { platforms } = latest;
 
     if (!platform || !platforms?.[platform]) {
       send(res, 404, 'No download available for your platform!');
+      return;
+    }
+
+    // Só no download humano: uma atualização do Squirrel não pode ganhar nome
+    // diferente, senão o protocolo deixa de reconhecer o pacote.
+    if (
+      platform === 'exe' &&
+      !isUpdate &&
+      (await tryTaggedDownload(params?.t, latest.version, platforms.exe, res))
+    ) {
       return;
     }
 
@@ -102,7 +167,7 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
     }
 
     // Get the latest version from the cache
-    const latest = await loadCache();
+    const latest = await loadCacheAndWarmMirror();
 
     // Check platform for appropiate aliases
     try {
@@ -114,10 +179,23 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
       return;
     }
 
-    console.log(latest.platforms);
-
     if (!latest.platforms?.[platform]) {
       send(res, 404, 'No download available for your platform');
+      return;
+    }
+
+    // Só no download humano: uma atualização do Squirrel não pode ganhar nome
+    // diferente, senão o protocolo deixa de reconhecer o pacote.
+    if (
+      platform === 'exe' &&
+      !isUpdate &&
+      (await tryTaggedDownload(
+        params?.t,
+        latest.version,
+        latest.platforms.exe,
+        res,
+      ))
+    ) {
       return;
     }
 
@@ -158,7 +236,10 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
     }
 
     // Get the latest version from the cache
-    const latest = await loadCache();
+    // Aquece o espelho aqui também: esta é a rota que o updater de cada cliente
+    // bate a cada 3 min, e é ela que faz uma release nova estar copiada antes
+    // de a primeira pessoa clicar em baixar.
+    const latest = await loadCacheAndWarmMirror();
 
     if (!latest.platforms?.[platform]) {
       res.statusCode = 204;

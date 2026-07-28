@@ -39,6 +39,30 @@ The following environment variables can be used optionally:
 - `TOKEN`: Your GitHub token (for private repos)
 - `PRIVATE_BASE_URL`: The server's URL (for private repos - when running on [Vercel](https://vercel.com), this field is filled with the URL of the deployment automatically)
 
+### Release mirror (optional)
+
+Mirrors each release asset to an S3-compatible bucket so the Windows installer
+can be served with a caller-supplied tag in its filename. Without these
+variables the mirror stays off and every download route behaves exactly as
+before.
+
+- `BUCKET_NAME_CLOUDFLARE_R2`, `AWS_ACCESS_KEY_ID_CLOUDFLARE_R2`,
+  `AWS_SECRET_ACCESS_KEY_CLOUDFLARE_R2`: bucket and credentials. All three are
+  required to turn the mirror on
+- `AWS_ENDPOINT_CLOUDFLARE_R2`, `AWS_DEFAULT_REGION_CLOUDFLARE_R2`: S3 endpoint
+  and region (region defaults to `auto`)
+- `RELEASES_MIRROR_PREFIX`: key prefix in the bucket (defaults to `releases`)
+- `INSTALLER_TAG_PREFIX`: prefix placed before the tag in the filename
+  (defaults to `build-`). The client that reads the filename must be configured
+  with the same value
+
+Mirroring is one copy per release, not per download, and it is kicked off in the
+background from the traffic the service already receives.
+
+Object keys are `<prefix>/<REPOSITORY>/<version>/<asset name>`. The repository is
+part of the key so that several deployments, each reading a different release
+repo, can safely share one bucket.
+
 ## Statistics
 
 Since Nutela routes all the traffic for downloading the actual application files to [GitHub Releases](https://help.github.com/articles/creating-releases/), you can use their API to determine the download count for a certain release.
@@ -62,6 +86,20 @@ If the latest version of the application wasn't yet pulled from [GitHub Releases
 Accepts a platform (like "darwin" or "win32") to download the appropriate copy your app for. I generally suggest using either `process.platform` ([more](https://nodejs.org/api/process.html#process_process_platform)) or `os.platform()` ([more](https://nodejs.org/api/os.html#os_os_platform)) to retrieve this string.
 
 If the cache isn't filled yet or doesn't contain a download link for the specified platform, it will respond like `/`.
+
+Both `/download` and `/download/:platform` accept an optional `?t=<tag>` for the
+Windows installer. When the release mirror is configured and the asset has
+already been copied, the response redirects to a presigned URL that forces the
+filename `<asset> [<prefix><tag>].exe`, letting the installed client correlate
+the download it came from. Any failure — mirror off, malformed tag, release not
+copied yet — silently falls back to the normal redirect, so the user still gets
+the same binary.
+
+`?t=` is ignored when `?update=true`, since a Squirrel update must keep the
+canonical filename.
+
+**The tag is opaque to this service and may carry sensitive caller data. Never
+log it, and prefer a short-lived, single-use value.**
 
 ### /update/:platform/:version
 
