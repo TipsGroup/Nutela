@@ -260,7 +260,9 @@ export default ({ cache, config }: { cache: Cache; config: Config }) => {
 
     if (compare(latest.version!, version) !== 0) {
       const { notes, pub_date } = latest;
-      const sanitizedBaseUrl = url!.startsWith('http') ? url : `https://${url}`;
+      const sanitizedBaseUrl = (
+        url!.startsWith('http') ? url! : `https://${url}`
+      ).replace(/\/+$/, '');
       const responseData = {
         name: latest.version,
         notes,
