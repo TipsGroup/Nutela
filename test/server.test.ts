@@ -26,3 +26,23 @@ describe('Server', () => {
     server.close();
   });
 });
+
+describe('Path normalization', () => {
+  it('Should route URLs with repeated slashes like the clean path', async () => {
+    const nutela = require('../src/lib/index').default;
+
+    const handler = nutela({ account: 'zeit', repository: 'hyper' });
+    const server = new http.Server(handler);
+    const base = await listen(server);
+
+    try {
+      const clean = await fetch(`${base}/update/darwin/not-semver`);
+      const doubled = await fetch(`${base}//update//darwin/not-semver`);
+
+      expect(clean.status).toBe(500);
+      expect(doubled.status).toBe(clean.status);
+    } finally {
+      server.close();
+    }
+  });
+});
